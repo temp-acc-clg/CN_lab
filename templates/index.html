@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP Request Analyzer | Computer Networks Tool</title>
+    <meta name="description" content="A powerful educational tool to inspect HTTP requests, response headers, status codes, latency timings, and client-server communication.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Top Navigation Bar -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="brand-title">HTTP Request Analyzer</h1>
+                    <span class="brand-subtitle">Computer Networks Lab &amp; Diagnostic Suite</span>
+                </div>
+            </div>
+            <div class="nav-actions">
+                <button id="toggle-history-btn" class="btn btn-secondary" title="View Request History">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    History (<span id="history-count">0</span>)
+                </button>
+                <a href="#cn-guide-modal" id="open-guide-btn" class="btn btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    CN Concepts
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="main-container">
+            <!-- Sidebar / History Drawer -->
+            <aside id="history-sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Request History</h3>
+                    <button id="clear-history-btn" class="btn-icon" title="Clear all history">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <div class="empty-hint">No recent requests recorded.</div>
+                </div>
+            </aside>
+
+            <!-- Main Interactive Content -->
+            <main class="content-area">
+                <!-- Preset Quick Buttons -->
+                <section class="presets-section">
+                    <span class="preset-label">Quick Presets:</span>
+                    <button class="preset-chip" data-url="https://example.com" data-method="GET">Example Domain (GET)</button>
+                    <button class="preset-chip" data-url="https://httpbin.org/get" data-method="GET">HTTPBin JSON (GET)</button>
+                    <button class="preset-chip" data-url="https://httpbin.org/post" data-method="POST" data-body='{"name": "Alice", "role": "Network Engineer"}'>HTTPBin POST (JSON)</button>
+                    <button class="preset-chip" data-url="https://httpbin.org/status/404" data-method="GET">404 Not Found</button>
+                    <button class="preset-chip" data-url="https://httpbin.org/status/500" data-method="GET">500 Server Error</button>
+                    <button class="preset-chip" data-url="https://httpbin.org/redirect/2" data-method="GET">Redirect Chain (302)</button>
+                    <button class="preset-chip" data-url="https://httpbin.org/delay/2" data-method="GET">Latency Delay (2s)</button>
+                </section>
+
+                <!-- Request Form Card -->
+                <section class="card request-card">
+                    <form id="request-form">
+                        <div class="url-bar-container">
+                            <div class="method-selector-wrapper">
+                                <select id="request-method" class="method-select method-GET">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                    <option value="PUT">PUT</option>
+                                    <option value="DELETE">DELETE</option>
+                                    <option value="PATCH">PATCH</option>
+                                    <option value="HEAD">HEAD</option>
+                                    <option value="OPTIONS">OPTIONS</option>
+                                </select>
+                            </div>
+                            <div class="url-input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="request-url" 
+                                    class="url-input" 
+                                    placeholder="Enter target URL (e.g., https://example.com or httpbin.org/get)" 
+                                    value="https://example.com" 
+                                    required
+                                >
+                            </div>
+                            <button type="submit" id="send-btn" class="btn btn-primary">
+                                <span class="btn-text">Send Request</span>
+                                <span class="spinner" style="display: none;"></span>
+                            </button>
+                        </div>
+
+                        <!-- Request Config Tabs -->
+                        <div class="tabs-container">
+                            <div class="tabs-header">
+                                <button type="button" class="tab-btn active" data-tab="tab-headers">Headers (<span id="header-count-badge">0</span>)</button>
+                                <button type="button" class="tab-btn" data-tab="tab-body">Request Body</button>
+                                <button type="button" class="tab-btn" data-tab="tab-settings">Network Settings</button>
+                            </div>
+
+                            <!-- Tab 1: Headers -->
+                            <div id="tab-headers" class="tab-content active">
+                                <div class="headers-editor">
+                                    <div class="headers-header-row">
+                                        <span>Header Name</span>
+                                        <span>Header Value</span>
+                                        <span>Action</span>
+                                    </div>
+                                    <div id="headers-rows-container">
+                                        <!-- Dynamically generated rows -->
+                                    </div>
+                                    <button type="button" id="add-header-row-btn" class="btn btn-sm btn-outline">+ Add Header</button>
+                                </div>
+                            </div>
+
+                            <!-- Tab 2: Body -->
+                            <div id="tab-body" class="tab-content">
+                                <div class="body-editor-toolbar">
+                                    <span>Payload Format: JSON or Plain Text</span>
+                                    <button type="button" id="format-json-body-btn" class="btn btn-xs btn-outline">Beautify JSON</button>
+                                </div>
+                                <textarea id="request-body-input" class="code-textarea" placeholder='Optional body payload, e.g. {"key": "value"}'></textarea>
+                            </div>
+
+                            <!-- Tab 3: Settings -->
+                            <div id="tab-settings" class="tab-content">
+                                <div class="settings-grid">
+                                    <div class="setting-item">
+                                        <label for="request-timeout">Timeout (Seconds):</label>
+                                        <input type="number" id="request-timeout" min="1" max="60" value="10" class="input-number">
+                                        <small class="hint-text">Abort request if the server does not respond within this limit.</small>
+                                    </div>
+                                    <div class="setting-item">
+                                        <label>Educational Mode:</label>
+                                        <div class="badge badge-info">Active (Automatic CN Explanations Enabled)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Loading State -->
+                <div id="loading-state" class="state-container" style="display: none;">
+                    <div class="loading-spinner-large"></div>
+                    <h3>Transmitting HTTP Packet...</h3>
+                    <p class="text-muted">Performing DNS lookup, initiating TCP handshake, sending headers and waiting for server response.</p>
+                </div>
+
+                <!-- Error State Banner -->
+                <div id="error-card" class="card error-card" style="display: none;">
+                    <div class="error-header">
+                        <div class="error-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 id="error-title">Request Failed</h3>
+                            <p id="error-message">Unable to reach the server.</p>
+                        </div>
+                    </div>
+                    <div id="error-details-box" class="error-details-box" style="display: none;">
+                        <strong>Technical Diagnostics:</strong>
+                        <pre id="error-details-pre"></pre>
+                    </div>
+                </div>
+
+                <!-- Response Results Section -->
+                <section id="results-card" class="card results-card" style="display: none;">
+                    <!-- Overview Metrics Bar -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Status Code</span>
+                            <div class="metric-value">
+                                <span id="res-status-badge" class="status-badge status-2xx">200 OK</span>
+                            </div>
+                            <span id="res-status-category" class="metric-sub">2xx Success</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Response Latency</span>
+                            <div class="metric-value">
+                                <span id="res-time-val" class="highlight-val">0</span> <small>ms</small>
+                            </div>
+                            <span class="metric-sub">Round-trip time</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Payload Size</span>
+                            <div class="metric-value">
+                                <span id="res-size-val" class="highlight-val">0 bytes</span>
+                            </div>
+                            <span id="res-char-count" class="metric-sub">0 characters</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Content Type</span>
+                            <div class="metric-value">
+                                <span id="res-content-type" class="metric-text-small">text/html</span>
+                            </div>
+                            <span id="res-encoding" class="metric-sub">Encoding: utf-8</span>
+                        </div>
+                    </div>
+
+                    <!-- Redirect Notice if present -->
+                    <div id="redirect-notice" class="alert-banner" style="display: none;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        <span id="redirect-text"></span>
+                    </div>
+
+                    <!-- Response Content Tabs -->
+                    <div class="tabs-container response-tabs">
+                        <div class="tabs-header">
+                            <button type="button" class="tab-btn active" data-tab="res-tab-body">Response Body</button>
+                            <button type="button" class="tab-btn" data-tab="res-tab-headers">Response Headers (<span id="res-header-count">0</span>)</button>
+                            <button type="button" class="tab-btn" data-tab="res-tab-req-headers">Request Headers Sent</button>
+                            <button type="button" class="tab-btn" data-tab="res-tab-insights">CN Deep Dive</button>
+                        </div>
+
+                        <!-- Response Tab 1: Body -->
+                        <div id="res-tab-body" class="tab-content active">
+                            <div class="code-viewer-toolbar">
+                                <span id="body-format-badge" class="badge">Raw Text</span>
+                                <div class="toolbar-actions">
+                                    <button id="copy-body-btn" class="btn btn-xs btn-outline">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                        Copy
+                                    </button>
+                                </div>
+                            </div>
+                            <pre id="response-body-pre" class="code-pre"><code></code></pre>
+                        </div>
+
+                        <!-- Response Tab 2: Response Headers -->
+                        <div id="res-tab-headers" class="tab-content">
+                            <div class="table-search-bar">
+                                <input type="text" id="header-search-input" placeholder="Filter headers (e.g. Content-Type, Server, Cache-Control)..." class="search-input">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="headers-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 25%;">Header Name</th>
+                                            <th style="width: 35%;">Value</th>
+                                            <th style="width: 40%;">Networking Purpose (Explanation)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="res-headers-tbody">
+                                        <!-- Dynamically populated -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Response Tab 3: Request Headers Sent -->
+                        <div id="res-tab-req-headers" class="tab-content">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 35%;">Client Header</th>
+                                            <th style="width: 65%;">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="req-headers-tbody">
+                                        <!-- Dynamically populated -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Response Tab 4: Computer Networks Deep Dive -->
+                        <div id="res-tab-insights" class="tab-content">
+                            <div class="insights-container">
+                                <div class="insight-block">
+                                    <h4>Protocol Summary</h4>
+                                    <p id="cn-summary-note" class="text-highlight"></p>
+                                </div>
+                                <div class="insight-block">
+                                    <h4>Status Code Analysis</h4>
+                                    <p id="cn-status-explanation"></p>
+                                </div>
+                                <div class="insight-block">
+                                    <h4>Behind the Scenes: Client-Server Cycle</h4>
+                                    <div class="timeline-steps">
+                                        <div class="timeline-step">
+                                            <span class="step-num">1</span>
+                                            <div>
+                                                <strong>DNS Lookup</strong>
+                                                <p>The client queried DNS servers to translate host into an IP address.</p>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-step">
+                                            <span class="step-num">2</span>
+                                            <div>
+                                                <strong>TCP 3-Way Handshake (SYN &rarr; SYN-ACK &rarr; ACK)</strong>
+                                                <p>Reliable full-duplex TCP socket established on port 80 (HTTP) or 443 (HTTPS).</p>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-step">
+                                            <span class="step-num">3</span>
+                                            <div>
+                                                <strong>TLS / SSL Handshake (if HTTPS)</strong>
+                                                <p>Asymmetric key exchange and symmetric cipher negotiation for encrypted communication.</p>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-step">
+                                            <span class="step-num">4</span>
+                                            <div>
+                                                <strong>HTTP Request Transmission</strong>
+                                                <p>Client transmitted Method, URI, Request Headers, and optional payload over the socket.</p>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-step">
+                                            <span class="step-num">5</span>
+                                            <div>
+                                                <strong>Server Processing &amp; HTTP Response</strong>
+                                                <p>Target web server processed the request, returned status code, response headers, and payload.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Initial Empty Welcome Card -->
+                <section id="welcome-card" class="card welcome-card">
+                    <div class="welcome-inner">
+                        <div class="welcome-icon">🚀</div>
+                        <h2>Ready to Analyze HTTP Traffic</h2>
+                        <p>Enter any website or API URL above, or pick one of the quick presets to inspect how client and server exchange data over HTTP.</p>
+                        <div class="features-mini-grid">
+                            <div class="mini-feature">
+                                <strong>Status Codes</strong>
+                                <span>Inspect 2xx, 3xx, 4xx, and 5xx responses with standard RFC definitions.</span>
+                            </div>
+                            <div class="mini-feature">
+                                <strong>Latency Breakdown</strong>
+                                <span>Measure server processing and round-trip transmission time in milliseconds.</span>
+                            </div>
+                            <div class="mini-feature">
+                                <strong>Header Diagnostics</strong>
+                                <span>Understand caching, compression, security policies (HSTS/CORS), and cookies.</span>
+                            </div>
+                            <div class="mini-feature">
+                                <strong>Error Simulation</strong>
+                                <span>Diagnose DNS lookup failures, network timeouts, and connection refusal.</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for CN Educational Concepts -->
+    <div id="cn-guide-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>Computer Networks HTTP Quick Reference</h3>
+                <button id="close-modal-btn" class="btn-icon">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4>1. What is HTTP?</h4>
+                <p>The Hypertext Transfer Protocol (HTTP) is an application-layer protocol in the TCP/IP stack used for transmitting hypermedia documents. It operates on a request-response client-server architecture.</p>
+
+                <h4>2. HTTP Status Code Classes</h4>
+                <ul>
+                    <li><strong>1xx (Informational):</strong> Request received, continuing process.</li>
+                    <li><strong>2xx (Success):</strong> Action was successfully received, understood, and accepted (e.g. 200 OK, 201 Created).</li>
+                    <li><strong>3xx (Redirection):</strong> Further action must be taken to complete the request (e.g. 301 Moved Permanently, 302 Found).</li>
+                    <li><strong>4xx (Client Error):</strong> Request contains bad syntax or cannot be fulfilled (e.g. 400 Bad Request, 404 Not Found).</li>
+                    <li><strong>5xx (Server Error):</strong> Server failed to fulfill an apparently valid request (e.g. 500 Internal Server Error, 503 Service Unavailable).</li>
+                </ul>
+
+                <h4>3. Common HTTP Request Methods</h4>
+                <ul>
+                    <li><strong>GET:</strong> Requests a representation of the specified resource. Safe &amp; idempotent.</li>
+                    <li><strong>POST:</strong> Submits an entity to the specified resource, often causing a change in state or side effects on the server.</li>
+                    <li><strong>PUT:</strong> Replaces all current representations of the target resource with the request payload.</li>
+                    <li><strong>DELETE:</strong> Deletes the specified resource.</li>
+                    <li><strong>HEAD:</strong> Asks for a response identical to a GET request, but without the response body.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
